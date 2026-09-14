@@ -1,33 +1,35 @@
 package away3d.materials;
 
-/**
- * Enumeration class for defining which lighting types affect the specific material
- * lighting component (diffuse and specular). This can be useful if, for example, you
- * want to use light probes for diffuse global lighting, but want specular reflections from
- * traditional light sources without those affecting the diffuse light.
- *
- * @see away3d.materials.ColorMaterial.diffuseLightSources
- * @see away3d.materials.ColorMaterial.specularLightSources
- * @see away3d.materials.TextureMaterial.diffuseLightSources
- * @see away3d.materials.TextureMaterial.specularLightSources
- */
-class LightSources
+enum abstract LightSources(Int) from Int to Int
 {
-	/**
-	 * Defines normal lights are to be used as the source for the lighting
-	 * component.
-	 */
-	public static inline var LIGHTS:Int = 0x01;
-	
-	/**
-	 * Defines that global lighting probes are to be used as the source for the
-	 * lighting component.
-	 */
-	public static inline var PROBES:Int = 0x02;
-	
-	/**
-	 * Defines that both normal and global lighting probes  are to be used as the
-	 * source for the lighting component. This is equivalent to LIGHTS | PROBES.
-	 */
-	public static inline var ALL:Int = 0x03;
+	var LIGHTS = 0x01;
+	var PROBES = 0x02;
+	var ALL    = 0x03;
+
+	public inline function contains(flag:LightSources):Bool
+	{
+		return (this & flag) == flag;
+	}
+
+	public inline function add(flag:LightSources):LightSources
+	{
+		return this | flag;
+	}
+
+	public inline function remove(flag:LightSources):LightSources
+	{
+		return this & ~flag;
+	}
+
+	@:op(A | B) 
+	public static inline function combine(a:LightSources, b:LightSources):LightSources
+	{
+		return a | b;
+	}
+
+	@:op(A & B) 
+	public static inline function intersect(a:LightSources, b:LightSources):LightSources
+	{
+		return a & b;
+	}
 }
