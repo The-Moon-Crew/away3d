@@ -27,10 +27,12 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 	public var playbackSpeed(get, set):Float;
 	public var assetType(get, never):String;
 	public var isPlaying(get, never):Bool;
+	public var isPaused(get, never):Bool;
 
 	public var updatePosition:Bool = true;
 
 	private var _isPlaying:Bool = false;
+	private var _isPaused:Bool = false;
 	private var _autoUpdate:Bool = true;
 	private var _time:Int = 0;
 	private var _playbackSpeed:Float = 1.0;
@@ -55,7 +57,7 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 
 	public function play(name:String, stateTransition:Float = 0.2, offset:Int = 0):IAnimationState
 	{
-		if (_activeAnimationName == name && _isPlaying)
+		if (_activeAnimationName == name && _isPlaying && !_isPaused)
 			return _activeState;
 
 		var node = _animationSet.getAnimation(name);
@@ -69,14 +71,37 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 		if (offset != 0)
 			_activeState.offset(offset + _absoluteTime);
 
+		_isPaused = false;
+
 		if (!_isPlaying && _autoUpdate)
 			start();
 
 		return _activeState;
 	}
 
+	public function pause():Void
+	{
+		if (!_isPlaying || _isPaused)
+			return;
+
+		_isPaused = true;
+		_ticker.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
+	}
+
+	public function resume():Void
+	{
+		if (!_isPlaying || !_isPaused)
+			return;
+
+		_isPaused = false;
+		_time = Lib.getTimer();
+		_ticker.addEventListener(Event.ENTER_FRAME, onEnterFrame);
+	}
+
 	public function getAnimationState(node:AnimationNodeBase):IAnimationState
 	{
+		if (node == null) return null;
+
 		var state = _animationStates.get(node);
 		if (state == null)
 		{
@@ -105,6 +130,7 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 
 		_time = _absoluteTime = Lib.getTimer();
 		_isPlaying = true;
+		_isPaused = false;
 
 		_ticker.addEventListener(Event.ENTER_FRAME, onEnterFrame);
 
@@ -122,6 +148,7 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 			return;
 
 		_isPlaying = false;
+		_isPaused = false;
 		_ticker.removeEventListener(Event.ENTER_FRAME, onEnterFrame);
 
 		if (hasEventListener(AnimatorEvent.STOP))
@@ -134,6 +161,9 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 
 	public function update(time:Int):Void
 	{
+		if (_isPaused)
+			return;
+
 		var delta = Std.int((time - _time) * _playbackSpeed);
 		updateDeltaTime(delta);
 		_time = time;
@@ -198,6 +228,13 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 	public function dispose():Void
 	{
 		stop();
+
+		for (state in _animationStates)
+		{
+			if (state != null)
+				state.dispose();
+		}
+
 		_owners = [];
 		_animationStates = new Map();
 		_activeNode = null;
@@ -211,6 +248,7 @@ class AnimatorBase extends NamedAssetBase implements IAsset
 	private inline function get_activeAnimation():AnimationNodeBase return _activeNode;
 	private inline function get_activeAnimationName():String return _activeAnimationName;
 	private inline function get_isPlaying():Bool return _isPlaying;
+	private inline function get_isPaused():Bool return _isPaused;
 	private inline function get_autoUpdate():Bool return _autoUpdate;
 
 	private function set_autoUpdate(value:Bool):Bool
